@@ -15,7 +15,30 @@ from aiogram.types import Message
 
 from bot.config import Settings
 from bot.db import Repo
-from bot.providers import ChatMessage, ProviderError, ProviderRegistry
+from bot.providers import (
+    ChatMessage,
+    ProviderContext,
+    ProviderError,
+    ProviderRegistry,
+)
+
+
+class _RepoBackedState:
+    """Adapter from Repo.state_{get,set,delete} to the ProviderStateStore protocol."""
+
+    def __init__(self, repo: Repo, user_id: int, provider: str) -> None:
+        self._repo = repo
+        self._user_id = user_id
+        self._provider = provider
+
+    async def get(self, key: str) -> str | None:
+        return await self._repo.state_get(self._user_id, self._provider, key)
+
+    async def set(self, key: str, value: str) -> None:
+        await self._repo.state_set(self._user_id, self._provider, key, value)
+
+    async def delete(self, key: str) -> None:
+        await self._repo.state_delete(self._user_id, self._provider, key)
 
 log = logging.getLogger(__name__)
 router = Router(name="messages")
@@ -58,6 +81,10 @@ async def handle_message(
     messages.extend(history)
 
     provider_obj = registry.get(provider)
+    provider_context = ProviderContext(
+        user_id=user_id,
+        state=_RepoBackedState(repo, user_id, provider),
+    )
 
     # Acknowledge with typing status right away.
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)  # type: ignore[union-attr]
@@ -75,6 +102,7 @@ async def handle_message(
             model=model,
             messages=messages,
             max_output_tokens=settings.max_output_tokens,
+            context=provider_context,
         ):
             accumulated += piece
             now = time.monotonic()

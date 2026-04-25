@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI, OpenAIError
 
-from bot.providers.base import ChatMessage, LLMProvider, ProviderError
+from bot.providers.base import ChatMessage, LLMProvider, ProviderContext, ProviderError
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,9 @@ class OpenAIProvider(LLMProvider):
         model: str,
         messages: list[ChatMessage],
         max_output_tokens: int,
+        context: ProviderContext,
     ) -> AsyncIterator[str]:
+        _ = context  # OpenAI provider is stateless
         if model not in self.models:
             raise ProviderError(f"Model {model!r} is not configured for OpenAI")
 

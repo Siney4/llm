@@ -37,4 +37,5 @@ def _pretty_provider(name: str) -> str:
     return {
         "openai": "🟢 OpenAI (ChatGPT)",
         "anthropic": "🟣 Anthropic (Claude)",
+        "devin": "🤖 Devin (coding agent)",
     }.get(name, name)

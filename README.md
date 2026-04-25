@@ -1,8 +1,8 @@
 # tg-llm-aggregator
 
-Telegram bot that aggregates **OpenAI (ChatGPT)** and **Anthropic (Claude)** into a single chat UI. Pick a provider and model, chat normally — the bot streams replies back, keeps conversation history per user, and switches models on demand.
+Telegram bot that aggregates **OpenAI (ChatGPT)**, **Anthropic (Claude)** and **Devin** (AI software engineer) into a single chat UI. Pick a provider and model, chat normally — the bot streams replies back, keeps conversation history per user, and switches providers on demand.
 
-Built with [aiogram 3](https://aiogram.dev), the official `openai` and `anthropic` async SDKs, and SQLite (via `aiosqlite`) for history.
+Built with [aiogram 3](https://aiogram.dev), the official `openai` and `anthropic` async SDKs, `httpx` for the Devin API, and SQLite (via `aiosqlite`) for history.
 
 ## Features
 
@@ -11,9 +11,16 @@ Built with [aiogram 3](https://aiogram.dev), the official `openai` and `anthropi
 - Per-user conversation history in SQLite; `/reset` to clear
 - System prompt, history window and model lists are all env-configurable
 - No hardcoded model IDs — point `OPENAI_MODELS` / `ANTHROPIC_MODELS` at whatever models your account has access to (GPT-5, Claude Opus 4.5, or whatever ships next)
+- **Devin provider**: wraps Devin's `v1/sessions` API. Create session → poll → stream new messages back. Multi-turn works: follow-ups in the same session if it's still alive.
 - Optional allow-list (`ALLOWED_USER_IDS`) and admin IDs (`ADMIN_USER_IDS` → `/stats`)
-- Clean `LLMProvider` abstraction — add a third provider in ~50 LOC
+- Clean `LLMProvider` abstraction — each provider is ~50 LOC
 - Dockerfile + `docker-compose.yml` included
+
+## Note about Devin "models"
+
+The Devin web UI shows a model picker (Agent / Fast Mode / GPT-5.5 / Opus 4.7), but **the public Devin API does NOT accept a model parameter**. The `DEVIN_MODELS` env var controls the labels shown to the user; the actual underlying model is whatever your Devin organization is configured to use.
+
+⚠️ **Cost**: each Devin session burns ACUs (~$2.25/ACU). A single chat turn can cost $1–7. Keep `DEVIN_MAX_ACU_LIMIT=1` while testing, and budget carefully before exposing the Devin provider to public users.
 
 ## Quick start
 
@@ -25,8 +32,9 @@ Open [@BotFather](https://t.me/BotFather), send `/newbot`, follow the steps. Cop
 
 - OpenAI: <https://platform.openai.com/api-keys>
 - Anthropic: <https://console.anthropic.com/settings/keys>
+- Devin: <https://app.devin.ai/settings/api-keys>
 
-You only need to configure the provider(s) you plan to use; the other one can stay empty.
+You only need to configure the provider(s) you plan to use; any combination works.
 
 ### 3. Configure `.env`
 
@@ -85,24 +93,26 @@ Any plain message is forwarded to the selected model. Long responses are streame
 
 ```
 src/bot/
-  __main__.py           # python -m bot
-  main.py               # wires Dispatcher, DB, providers
-  config.py             # pydantic-settings from .env
-  keyboards.py          # inline keyboards
+  __main__.py              # python -m bot
+  main.py                  # wires Dispatcher, DB, providers
+  config.py                # pydantic-settings from .env
+  keyboards.py             # inline keyboards
   handlers/
-    commands.py         # /start /help /model /reset /stats
-    messages.py         # streaming chat pipeline
+    commands.py            # /start /help /model /reset /stats
+    messages.py            # streaming chat pipeline
   providers/
-    base.py             # LLMProvider ABC + ChatMessage
-    openai_provider.py  # AsyncOpenAI
+    base.py                # LLMProvider ABC + ChatMessage + ProviderContext
+    openai_provider.py     # AsyncOpenAI
     anthropic_provider.py  # AsyncAnthropic
-    registry.py         # build registry from settings
+    devin_provider.py      # Devin v1/sessions with polling
+    registry.py            # build registry from settings
   db/
-    repo.py             # users + messages in SQLite
+    repo.py                # users + messages + provider_state in SQLite
 tests/
   test_config.py
   test_registry.py
   test_repo.py
+  test_devin_provider.py
 ```
 
 ## Adding a new provider
