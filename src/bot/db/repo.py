@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_user_created
     ON messages(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS provider_state (
+    user_id    INTEGER NOT NULL,
+    provider   TEXT    NOT NULL,
+    key        TEXT    NOT NULL,
+    value      TEXT    NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    PRIMARY KEY (user_id, provider, key)
+);
 """
 
 
@@ -102,6 +111,35 @@ class Repo:
 
     async def reset(self, user_id: int) -> None:
         await self._db.execute("DELETE FROM messages WHERE user_id = ?", (user_id,))
+        await self._db.execute("DELETE FROM provider_state WHERE user_id = ?", (user_id,))
+        await self._db.commit()
+
+    async def state_get(self, user_id: int, provider: str, key: str) -> str | None:
+        async with self._db.execute(
+            "SELECT value FROM provider_state WHERE user_id = ? AND provider = ? AND key = ?",
+            (user_id, provider, key),
+        ) as cur:
+            row = await cur.fetchone()
+        return row[0] if row else None
+
+    async def state_set(self, user_id: int, provider: str, key: str, value: str) -> None:
+        await self._db.execute(
+            """
+            INSERT INTO provider_state (user_id, provider, key, value)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, provider, key) DO UPDATE SET
+                value      = excluded.value,
+                updated_at = strftime('%s','now')
+            """,
+            (user_id, provider, key, value),
+        )
+        await self._db.commit()
+
+    async def state_delete(self, user_id: int, provider: str, key: str) -> None:
+        await self._db.execute(
+            "DELETE FROM provider_state WHERE user_id = ? AND provider = ? AND key = ?",
+            (user_id, provider, key),
+        )
         await self._db.commit()
 
     async def stats(self) -> tuple[int, int]:

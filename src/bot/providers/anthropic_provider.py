@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 
 from anthropic import AnthropicError, AsyncAnthropic
 
-from bot.providers.base import ChatMessage, LLMProvider, ProviderError
+from bot.providers.base import ChatMessage, LLMProvider, ProviderContext, ProviderError
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,9 @@ class AnthropicProvider(LLMProvider):
         model: str,
         messages: list[ChatMessage],
         max_output_tokens: int,
+        context: ProviderContext,
     ) -> AsyncIterator[str]:
+        _ = context  # Anthropic provider is stateless
         if model not in self.models:
             raise ProviderError(f"Model {model!r} is not configured for Anthropic")
 

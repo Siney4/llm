@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from bot.config import Settings
 from bot.providers.anthropic_provider import AnthropicProvider
 from bot.providers.base import LLMProvider
+from bot.providers.devin_provider import DevinProvider
 from bot.providers.openai_provider import OpenAIProvider
 
 
@@ -55,9 +56,20 @@ def build_registry(settings: Settings) -> ProviderRegistry:
         )
         defaults["anthropic"] = settings.anthropic_models[0]
 
+    if settings.has_devin():
+        providers["devin"] = DevinProvider(
+            api_key=settings.devin_api_key,
+            models=settings.devin_models,
+            base_url=settings.devin_base_url,
+            poll_interval=settings.devin_poll_interval,
+            max_acu_limit=settings.devin_max_acu_limit,
+        )
+        defaults["devin"] = settings.devin_models[0]
+
     if not providers:
         raise RuntimeError(
-            "No providers configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env."
+            "No providers configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY or "
+            "DEVIN_API_KEY in .env."
         )
 
     return ProviderRegistry(

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str = Field("", alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field("", alias="ANTHROPIC_API_KEY")
+    devin_api_key: str = Field("", alias="DEVIN_API_KEY")
 
     openai_models: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["gpt-4o", "gpt-4o-mini"],
@@ -28,6 +29,13 @@ class Settings(BaseSettings):
         default_factory=lambda: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
         alias="ANTHROPIC_MODELS",
     )
+    devin_models: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["Agent", "Fast Mode"],
+        alias="DEVIN_MODELS",
+    )
+    devin_base_url: str = Field("https://api.devin.ai", alias="DEVIN_BASE_URL")
+    devin_poll_interval: float = Field(3.0, alias="DEVIN_POLL_INTERVAL")
+    devin_max_acu_limit: int | None = Field(1, alias="DEVIN_MAX_ACU_LIMIT")
 
     default_provider: str = Field("openai", alias="DEFAULT_PROVIDER")
     system_prompt: str = Field(
@@ -49,7 +57,7 @@ class Settings(BaseSettings):
 
     log_level: str = Field("INFO", alias="LOG_LEVEL")
 
-    @field_validator("openai_models", "anthropic_models", mode="before")
+    @field_validator("openai_models", "anthropic_models", "devin_models", mode="before")
     @classmethod
     def _split_models(cls, v: object) -> object:
         if isinstance(v, str):
@@ -69,8 +77,17 @@ class Settings(BaseSettings):
     @classmethod
     def _check_provider(cls, v: str) -> str:
         v = v.lower().strip()
-        if v not in {"openai", "anthropic"}:
-            raise ValueError("DEFAULT_PROVIDER must be 'openai' or 'anthropic'")
+        if v not in {"openai", "anthropic", "devin"}:
+            raise ValueError("DEFAULT_PROVIDER must be 'openai', 'anthropic' or 'devin'")
+        return v
+
+    @field_validator("devin_max_acu_limit", mode="before")
+    @classmethod
+    def _normalize_acu(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, str) and v.strip().lower() in {"none", "null", "off", "0"}:
+            return None
         return v
 
     def has_openai(self) -> bool:
@@ -78,6 +95,9 @@ class Settings(BaseSettings):
 
     def has_anthropic(self) -> bool:
         return bool(self.anthropic_api_key and self.anthropic_models)
+
+    def has_devin(self) -> bool:
+        return bool(self.devin_api_key and self.devin_models)
 
 
 def load_settings() -> Settings:
