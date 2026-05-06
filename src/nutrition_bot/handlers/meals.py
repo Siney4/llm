@@ -57,7 +57,14 @@ async def on_meal_command(message: Message, storage: Storage, settings: Settings
 
 
 @router.message(Command("notes"))
-async def on_notes_command(message: Message, state: FSMContext) -> None:
+async def on_notes_command(message: Message, state: FSMContext, storage: Storage) -> None:
+    if message.from_user is None:
+        return
+    # Diet notes are stored on the user row, so the profile must exist first —
+    # otherwise the UPDATE silently affects 0 rows and notes are lost.
+    if await storage.load_profile(message.from_user.id) is None:
+        await message.answer("Сначала заполни анкету: /start")
+        return
     await state.set_state(DietNotesEdit.awaiting)
     await message.answer(
         "Пришли свободным текстом ограничения / пожелания по еде "
@@ -73,6 +80,11 @@ async def on_notes_set(message: Message, state: FSMContext, storage: Storage) ->
     notes = message.text.strip()
     if notes == "-":
         notes = ""
+    # Defensive double-check: state could have been entered before a /reset.
+    if await storage.load_profile(message.from_user.id) is None:
+        await state.clear()
+        await message.answer("Сначала заполни анкету: /start")
+        return
     await storage.update_diet_notes(message.from_user.id, notes)
     await state.clear()
     await message.answer("Ограничения сохранены ✅" if notes else "Ограничения очищены.")
