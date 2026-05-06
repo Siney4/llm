@@ -215,10 +215,17 @@ def distribute_meals(
     keys = _MEAL_KEYS[meals_count]
 
     # Round each share to nearest 10 kcal, then absorb the rounding remainder
-    # into the buffer so the total is exact.
+    # into the buffer so the total is exact. If the buffer would go negative
+    # (possible when buffer_fraction is 0 or tiny), fold the drift into the
+    # largest meal slot instead — keeps the invariant `sum(meals)+buffer ==
+    # target` and never produces a negative buffer.
     raw = [int(round(meals_budget * frac / 10.0)) * 10 for frac in dist]
     rounding_drift = meals_budget - sum(raw)
-    buffer_kcal += rounding_drift
+    if buffer_kcal + rounding_drift >= 0:
+        buffer_kcal += rounding_drift
+    else:
+        max_idx = max(range(len(raw)), key=lambda i: raw[i])
+        raw[max_idx] += rounding_drift
 
     meals = tuple(
         Meal(key=k, label=MEAL_LABELS_RU[k], kcal=kc) for k, kc in zip(keys, raw, strict=True)

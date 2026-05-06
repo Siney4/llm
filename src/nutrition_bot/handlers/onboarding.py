@@ -61,8 +61,13 @@ async def on_start(
 
 
 @router.message(Command("reset"))
-async def on_reset(message: Message, state: FSMContext, storage: Storage) -> None:
+async def on_reset(
+    message: Message, state: FSMContext, storage: Storage, settings: Settings
+) -> None:
     if message.from_user is None:
+        return
+    if not _is_allowed(message.from_user.id, settings.allowed_user_ids):
+        await message.answer("Доступ ограничён.")
         return
     await storage.delete_profile(message.from_user.id)
     await state.clear()

@@ -128,6 +128,26 @@ def test_distribute_meals_zero_buffer() -> None:
     assert sum(m.kcal for m in meals) == 2000
 
 
+def test_distribute_meals_zero_buffer_with_drift() -> None:
+    """When buffer_fraction=0 and rounding overshoots, buffer must stay ≥ 0
+    and the day still closes exactly (drift folded into largest meal)."""
+    # 5 meals + target=2070 → meals overshoot meals_budget by 10.
+    meals, buf = distribute_meals(2070, 5, buffer_fraction=0.0)
+    assert buf >= 0
+    assert sum(m.kcal for m in meals) + buf == 2070
+
+
+@pytest.mark.parametrize("target", [1500, 1810, 2070, 2200, 2430, 2615, 2890])
+@pytest.mark.parametrize("count", [3, 4, 5])
+@pytest.mark.parametrize("frac", [0.0, 0.05, 0.10, 0.15, 0.20])
+def test_distribute_meals_invariant_holds(target: int, count: int, frac: float) -> None:
+    """sum(meals) + buffer == target, buffer ≥ 0, every meal > 0 — across the grid."""
+    meals, buf = distribute_meals(target, count, buffer_fraction=frac)
+    assert buf >= 0
+    assert sum(m.kcal for m in meals) + buf == target
+    assert all(m.kcal > 0 for m in meals)
+
+
 def test_distribute_meals_invalid_count() -> None:
     with pytest.raises(ValueError):
         distribute_meals(2000, 6)
