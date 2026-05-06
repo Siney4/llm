@@ -1,102 +1,92 @@
 @echo off
-setlocal enabledelayedexpansion
-chcp 65001 >nul
-
 rem One-click launcher for nutrition-bot (Windows).
 rem
-rem Same flow as run.sh: find Python 3.11+, create .venv, install deps,
-rem bootstrap .env, run the bot. The LLM server (Qwen2.5-14B) must already
-rem be running locally — see README.
+rem Picks Python 3.11+, builds .venv, installs deps, bootstraps .env,
+rem then runs `python -m nutrition_bot`. The local LLM server (Qwen2.5-14B)
+rem must already be running -- see README.
 
+setlocal enableextensions
 cd /d "%~dp0"
 
 rem --- Find Python -----------------------------------------------------------
-set "PY=%PYTHON%"
-if "%PY%"=="" (
-  for %%C in (py python python3) do (
-    where %%C >nul 2>&1
+set "PY_CMD="
+where py >nul 2>&1
+if not errorlevel 1 (
+    py -3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
+    if not errorlevel 1 set "PY_CMD=py -3"
+)
+if not defined PY_CMD (
+    where python >nul 2>&1
     if not errorlevel 1 (
-      set "PY=%%C"
-      goto found_py
+        python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
+        if not errorlevel 1 set "PY_CMD=python"
     )
-  )
 )
-:found_py
-if "%PY%"=="" (
-  echo Python 3.11+ не найден. Установи Python с https://www.python.org/ и повтори запуск.
-  pause
-  exit /b 1
-)
-
-rem 'py' supports the -3.11 selector; fall back to plain command otherwise.
-if /I "%PY%"=="py" (
-  set "PY_CMD=py -3"
-) else (
-  set "PY_CMD=%PY%"
-)
-
-%PY_CMD% -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"
-if errorlevel 1 (
-  echo Нужен Python 3.11 или новее. Поставь свежий Python и повтори.
-  pause
-  exit /b 1
+if not defined PY_CMD (
+    echo ERROR: Python 3.11+ not found. Install Python from https://www.python.org/ and re-run.
+    pause
+    exit /b 1
 )
 
 rem --- Virtualenv ------------------------------------------------------------
 if not exist ".venv" (
-  echo Создаю виртуальное окружение в .venv...
-  %PY_CMD% -m venv .venv
-  if errorlevel 1 (
-    echo Не удалось создать .venv.
-    pause
-    exit /b 1
-  )
+    echo Creating virtualenv in .venv ...
+    %PY_CMD% -m venv .venv
+    if errorlevel 1 (
+        echo ERROR: failed to create .venv
+        pause
+        exit /b 1
+    )
 )
 
 call ".venv\Scripts\activate.bat"
 
 if not exist ".venv\.installed" (
-  echo Устанавливаю зависимости...
-  python -m pip install --upgrade pip --quiet
-  python -m pip install -e . --quiet
-  if errorlevel 1 (
-    echo Установка зависимостей упала.
-    pause
-    exit /b 1
-  )
-  type nul > ".venv\.installed"
+    echo Installing dependencies ...
+    python -m pip install --upgrade pip --quiet
+    if errorlevel 1 (
+        echo ERROR: pip upgrade failed
+        pause
+        exit /b 1
+    )
+    python -m pip install -e . --quiet
+    if errorlevel 1 (
+        echo ERROR: dependency install failed
+        pause
+        exit /b 1
+    )
+    type nul > ".venv\.installed"
 )
 
 rem --- .env ------------------------------------------------------------------
 if not exist ".env" (
-  if exist ".env.example" (
+    if not exist ".env.example" (
+        echo ERROR: neither .env nor .env.example found
+        pause
+        exit /b 1
+    )
     copy /Y ".env.example" ".env" >nul
     echo.
-    echo Создал .env из .env.example.
-    echo Открой его и впиши TELEGRAM_BOT_TOKEN ^(получить у @BotFather^),
-    echo проверь OPENAI_BASE_URL и OPENAI_MODEL.
-    echo После этого запусти скрипт снова.
+    echo Created .env from .env.example.
+    echo Open .env and fill in TELEGRAM_BOT_TOKEN ^(get one from @BotFather^),
+    echo also check OPENAI_BASE_URL and OPENAI_MODEL for your local LLM server.
+    echo Then re-run this script.
     pause
     exit /b 1
-  ) else (
-    echo Нет ни .env, ни .env.example.
-    pause
-    exit /b 1
-  )
 )
 
 findstr /R /C:"^TELEGRAM_BOT_TOKEN=..*" ".env" >nul
 if errorlevel 1 (
-  echo В .env пустой TELEGRAM_BOT_TOKEN. Получи токен у @BotFather и впиши.
-  pause
-  exit /b 1
+    echo ERROR: TELEGRAM_BOT_TOKEN is empty in .env. Get a token from @BotFather and set it.
+    pause
+    exit /b 1
 )
 
 rem --- Run -------------------------------------------------------------------
-echo Запускаю nutrition-bot...
+echo Starting nutrition-bot ...
 python -m nutrition_bot
-set "RC=%errorlevel%"
+set "RC=%ERRORLEVEL%"
 echo.
-echo Бот завершил работу с кодом %RC%.
+echo Bot exited with code %RC%.
 pause
 exit /b %RC%

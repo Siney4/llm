@@ -1,0 +1,10 @@
+# Default: let git auto-detect text vs binary. Concrete overrides below.
+* text=auto
+
+# Windows shell scripts MUST keep CRLF endings — cmd.exe parses if/for blocks
+# wrong with LF and treats inner lines as commands. Lock to CRLF on checkout.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# POSIX shell scripts MUST keep LF endings or bash refuses to parse them.
+*.sh    text eol=lf
