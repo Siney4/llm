@@ -1,6 +1,13 @@
-"""Plain-text formatters for plan / meal display in Telegram messages."""
+"""Plain-text formatters for plan / meal display in Telegram messages.
+
+Output of these helpers is sent with ``parse_mode="HTML"``, so any user-facing
+label that may contain ``<``, ``>`` or ``&`` (e.g. the sedentary activity
+label "< 5 000 шагов") is HTML-escaped before interpolation.
+"""
 
 from __future__ import annotations
+
+from html import escape
 
 from nutrition_bot.nutrition import (
     ACTIVITY_LABELS_RU,
@@ -16,8 +23,9 @@ def format_profile(profile: Profile) -> str:
     return (
         f"👤 {sex_ru}, {profile.age} лет\n"
         f"⚖️ {profile.weight_kg:.0f} кг · 📏 {profile.height_cm:.0f} см\n"
-        f"🏃 Активность: {ACTIVITY_LABELS_RU[profile.activity]} (×{PAL[profile.activity]})\n"
-        f"🎯 Цель: {GOAL_LABELS_RU[profile.goal]}"
+        f"🏃 Активность: {escape(ACTIVITY_LABELS_RU[profile.activity])} "
+        f"(×{PAL[profile.activity]})\n"
+        f"🎯 Цель: {escape(GOAL_LABELS_RU[profile.goal])}"
     )
 
 
