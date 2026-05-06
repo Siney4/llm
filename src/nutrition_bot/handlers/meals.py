@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import html
 import logging
 
 from aiogram import F, Router
@@ -128,12 +129,17 @@ async def on_generate(
         log.exception("LLM generation failed")
         await _safe_edit(
             placeholder,
-            f"❌ Не удалось получить ответ от LLM: {exc}\n"
-            f"Проверь, что Qwen2.5-14B-Instruct запущен и доступен по {settings.openai_base_url}.",
+            (
+                f"❌ Не удалось получить ответ от LLM: {html.escape(str(exc))}\n"
+                f"Проверь, что Qwen2.5-14B-Instruct запущен и доступен по "
+                f"{html.escape(settings.openai_base_url)}."
+            ),
         )
         return
 
-    final = f"🍽 <b>{meal_label}</b> · цель ~{target_kcal} ккал\n\n{text}"
+    # LLM output is plain user text — escape so any '<', '>', '&' in cooking notes
+    # don't break HTML parse mode (Telegram would otherwise reject the message).
+    final = f"🍽 <b>{html.escape(meal_label)}</b> · цель ~{target_kcal} ккал\n\n{html.escape(text)}"
     await _safe_edit(placeholder, final, reply_markup=keyboards.post_meal_kb(meal_key))
 
 
@@ -147,7 +153,16 @@ async def _safe_send(query: CallbackQuery, text: str) -> Message:
 
 
 async def _safe_edit(message: Message, text: str, reply_markup: object | None = None) -> None:
+    """Edit-or-resend, with a final plain-text fallback so messages always land."""
     try:
         await message.edit_text(text, parse_mode="HTML", reply_markup=reply_markup)  # type: ignore[arg-type]
+        return
     except TelegramBadRequest:
+        pass
+    try:
         await message.answer(text, parse_mode="HTML", reply_markup=reply_markup)  # type: ignore[arg-type]
+        return
+    except TelegramBadRequest:
+        log.warning("HTML send failed; retrying as plain text")
+    # Last resort: drop parse_mode so even malformed HTML still reaches the user.
+    await message.answer(text, reply_markup=reply_markup)  # type: ignore[arg-type]

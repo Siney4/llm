@@ -106,6 +106,13 @@ def test_distribute_meals_4() -> None:
     assert sum(m.kcal for m in meals) + buf == 2400
     keys = [m.key for m in meals]
     assert keys == ["breakfast", "lunch", "afternoon_snack", "dinner"]
+    # Snack must be the smallest slot; main meals stay biggest.
+    by_key = {m.key: m.kcal for m in meals}
+    assert by_key["afternoon_snack"] < by_key["breakfast"]
+    assert by_key["afternoon_snack"] < by_key["lunch"]
+    assert by_key["afternoon_snack"] < by_key["dinner"]
+    assert by_key["lunch"] >= by_key["breakfast"]
+    assert by_key["lunch"] >= by_key["dinner"]
 
 
 def test_distribute_meals_5() -> None:

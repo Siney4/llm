@@ -164,7 +164,8 @@ def macros(profile: Profile, kcal: int) -> Macros:
 # Order matters — it's the order of keys in `_MEAL_KEYS`.
 _DISTRIBUTIONS: dict[int, tuple[float, ...]] = {
     3: (0.30, 0.40, 0.30),
-    4: (0.25, 0.35, 0.25, 0.15),
+    # B / L / afternoon snack / D — main meals stay big, snack is the lightest slot.
+    4: (0.25, 0.35, 0.15, 0.25),
     5: (0.25, 0.10, 0.30, 0.10, 0.25),
 }
 
