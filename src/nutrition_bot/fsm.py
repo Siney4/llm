@@ -10,8 +10,13 @@ class Onboarding(StatesGroup):
     age = State()
     weight = State()
     height = State()
+    waist = State()
     activity = State()
     goal = State()
+    goal_pace = State()
+    diet_pattern = State()
+    health_flags = State()
+    allergies = State()
     meals_count = State()
 
 

@@ -5,7 +5,9 @@ from __future__ import annotations
 from nutrition_bot.formatting import format_plan, format_profile
 from nutrition_bot.nutrition import (
     Activity,
+    DietPattern,
     Goal,
+    HealthFlag,
     Profile,
     Sex,
     build_plan,
@@ -45,3 +47,38 @@ def test_format_plan_renders_for_each_activity() -> None:
             # Every '<' must be the start of an allowed tag (<b>, </b>) — no naked '< ' sequences.
             assert "< " not in text
             assert "<b>" in text  # bold tags survive escaping
+
+
+def test_format_plan_escapes_user_supplied_allergies() -> None:
+    """A wildly typed allergies field must come out HTML-escaped."""
+    p = Profile(
+        sex=Sex.female,
+        age=29,
+        weight_kg=58,
+        height_cm=168,
+        activity=Activity.light,
+        goal=Goal.maintain,
+        diet_pattern=DietPattern.vegan,
+        allergies="<script>alert(1)</script> & орехи",
+    )
+    plan = build_plan(p, meals_count=3)
+    text = format_plan(p, plan)
+    assert "<script>" not in text
+    assert "&lt;script&gt;" in text
+    assert "&amp; орехи" in text
+
+
+def test_format_plan_includes_warnings_for_kidney() -> None:
+    p = Profile(
+        sex=Sex.male,
+        age=55,
+        weight_kg=82,
+        height_cm=178,
+        activity=Activity.light,
+        goal=Goal.maintain,
+        health_flags=frozenset({HealthFlag.kidney_concerns}),
+    )
+    plan = build_plan(p, meals_count=3)
+    text = format_plan(p, plan)
+    assert "Почки" in text
+    assert "<b>Важно:</b>" in text or "Важно" in text

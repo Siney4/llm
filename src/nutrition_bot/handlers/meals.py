@@ -15,7 +15,7 @@ from aiogram.types import CallbackQuery, Message
 from nutrition_bot import keyboards
 from nutrition_bot.config import Settings
 from nutrition_bot.fsm import DietNotesEdit
-from nutrition_bot.llm import MealGenerator, MealRequest
+from nutrition_bot.llm import MealGenerator, request_from_plan
 from nutrition_bot.nutrition import MEAL_LABELS_RU, Macros, build_plan
 from nutrition_bot.storage import Storage
 
@@ -127,12 +127,11 @@ async def on_generate(
         query, f"⏳ Подбираю вариант для «{meal_label}» на ~{target_kcal} ккал…"
     )
 
-    req = MealRequest(
+    req = request_from_plan(
+        plan,
         meal_label=meal_label,
         target_kcal=target_kcal,
-        target_protein_g=macro_share[0] if macro_share else None,
-        target_fat_g=macro_share[1] if macro_share else None,
-        target_carbs_g=macro_share[2] if macro_share else None,
+        macro_share=macro_share,
         diet_notes=diet_notes or None,
     )
     try:
