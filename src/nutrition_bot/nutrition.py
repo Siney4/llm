@@ -505,7 +505,15 @@ def _build_warnings(
             "Талия / рост ≥ 0.6 — высокий метаболический риск, "
             "приоритет — снижение абдоминального жира."
         )
+    # Mirror the same additions target_kcal() uses, so the warning fires only
+    # when the *real* clamped target would land below the safety floor.
     raw_target = tdee(profile) + GOAL_PACE_DELTA[(profile.goal, profile.goal_pace)]
+    if HealthFlag.pregnancy_t2 in profile.health_flags:
+        raw_target += KCAL_ADD_PREGNANCY_T2
+    elif HealthFlag.pregnancy_t3 in profile.health_flags:
+        raw_target += KCAL_ADD_PREGNANCY_T3
+    if HealthFlag.breastfeeding in profile.health_flags:
+        raw_target += KCAL_ADD_BREASTFEEDING
     if raw_target < kcal_floor(profile):
         out.append(
             f"Расчётный калораж ниже безопасного минимума ({kcal_floor(profile)} ккал) "

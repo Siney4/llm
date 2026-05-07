@@ -175,5 +175,7 @@ async def _safe_edit(message: Message, text: str, reply_markup: object | None = 
         return
     except TelegramBadRequest:
         log.warning("HTML send failed; retrying as plain text")
-    # Last resort: drop parse_mode so even malformed HTML still reaches the user.
-    await message.answer(text, reply_markup=reply_markup)  # type: ignore[arg-type]
+    # Last resort: explicitly disable parse_mode so even malformed HTML still
+    # reaches the user (the bot's DefaultBotProperties sets HTML by default,
+    # so omitting parse_mode is *not* equivalent to plain text).
+    await message.answer(text, parse_mode=None, reply_markup=reply_markup)  # type: ignore[arg-type]

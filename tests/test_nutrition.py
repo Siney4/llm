@@ -463,6 +463,43 @@ def test_build_plan_warnings_for_aggressive_floor() -> None:
     assert any("безопасного минимума" in w for w in plan.warnings)
 
 
+def test_build_plan_pregnancy_does_not_trigger_floor_warning() -> None:
+    """Regression: the floor-clamp warning was firing whenever raw TDEE+delta
+    dipped below the floor, even though the pregnancy/breastfeeding bumps
+    pulled the real target back above the floor. False scare for pregnant
+    users — must not appear when the actual final target ≥ floor."""
+    p = make(
+        sex=Sex.female,
+        weight=60,
+        height=165,
+        age=30,
+        activity=Activity.sedentary,
+        goal=Goal.cut,
+        goal_pace=GoalPace.standard,
+        health_flags=frozenset({HealthFlag.pregnancy_t2}),
+    )
+    plan = build_plan(p, meals_count=3)
+    # Sanity: the plan really is above the female floor (1200) thanks to +340.
+    assert plan.target_kcal > 1200
+    assert not any("безопасного минимума" in w for w in plan.warnings)
+
+
+def test_build_plan_breastfeeding_does_not_trigger_floor_warning() -> None:
+    p = make(
+        sex=Sex.female,
+        weight=55,
+        height=160,
+        age=32,
+        activity=Activity.sedentary,
+        goal=Goal.cut,
+        goal_pace=GoalPace.standard,
+        health_flags=frozenset({HealthFlag.breastfeeding}),
+    )
+    plan = build_plan(p, meals_count=3)
+    assert plan.target_kcal > 1200
+    assert not any("безопасного минимума" in w for w in plan.warnings)
+
+
 # ---------------------------------------------------------------- Validation
 
 
