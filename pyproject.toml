@@ -1,0 +1,59 @@
+[project]
+name = "nutrition-bot"
+version = "0.1.0"
+description = "Telegram bot that builds personal nutrition plans (BMR/TDEE/macros) and generates meals via a local LLM (Qwen2.5-14B-Instruct Q4_K_M)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Siney4" }]
+dependencies = [
+    "aiogram>=3.13.0",
+    "openai>=1.54.0",
+    "aiosqlite>=0.20.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.5.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.7.0",
+    "mypy>=1.11.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[project.scripts]
+nutrition-bot = "nutrition_bot.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "ASYNC"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = false
+packages = ["nutrition_bot"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["aiosqlite.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
